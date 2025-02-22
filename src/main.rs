@@ -3,7 +3,7 @@ mod rk4;
 
 mod ui;
 
-use egui::{Window, widgets};
+use egui::{Grid, Window, widgets};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 type Float = f64;
@@ -17,16 +17,32 @@ fn main() {
 
     let app = |_mq_ctx: &mut dyn miniquad::RenderingBackend, egui_ctx: &egui::Context| {
         Window::new("Console").title_bar(true).show(egui_ctx, |ui| {
-            ui.label("Theme");
-            widgets::global_dark_light_mode_buttons(ui);
-            ui.end_row();
+            Grid::new("console grid")
+                .num_columns(2)
+                .spacing([40.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Theme");
+                    widgets::global_dark_light_mode_buttons(ui);
+                    ui.end_row();
 
-            ui.label("Source code");
-            ui.hyperlink_to(
-                format!("{0} Open on GitHub", egui::special_emojis::GITHUB),
-                "https://github.com/Richardn2002/hodgkin-huxley-playground",
-            );
-            ui.end_row();
+                    ui.label("Source code");
+                    ui.hyperlink_to(
+                        format!("{0} Open on GitHub", egui::special_emojis::GITHUB),
+                        "https://github.com/Richardn2002/hodgkin-huxley-playground",
+                    );
+                    ui.end_row();
+
+                    ui.label("Powered by");
+                    ui.hyperlink_to("Rust", "https://www.rust-lang.org/");
+                    ui.end_row();
+                    ui.label("");
+                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+                    ui.end_row();
+                    ui.label("");
+                    ui.hyperlink_to("miniquad", "https://github.com/not-fl3/miniquad");
+                    ui.end_row();
+                })
         });
 
         Window::new("Rate Functions").show(egui_ctx, |ui| {
