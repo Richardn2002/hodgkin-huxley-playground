@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+egui = "0.28"
+miniquad = "0.4"
+egui-miniquad = "0.15"
+egui_plot = "0.28"
