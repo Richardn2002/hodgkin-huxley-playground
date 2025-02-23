@@ -1,5 +1,17 @@
 use crate::{Float, rate};
 
+pub mod consts {
+    use super::Float;
+
+    pub const E_NA: Float = 115.0;
+    pub const E_K: Float = -12.0;
+    pub const E_L: Float = 10.6;
+
+    pub const G_NA_MAX: Float = 120.0;
+    pub const G_K_MAX: Float = 36.0;
+    pub const G_L_MAX: Float = 0.3;
+}
+
 pub fn tau_m(v: Float) -> Float {
     1.0 / (rate::alpha_m(v) + rate::beta_m(v))
 }
@@ -62,7 +74,38 @@ impl Default for Setup {
 #[derive(Clone, Copy, Default)]
 pub struct Axon {
     /// V, m, h, n
-    pub data: [Float; 4],
+    data: [Float; 4],
+}
+
+impl Axon {
+    pub fn v(&self) -> Float {
+        self.data[0]
+    }
+    pub fn m(&self) -> Float {
+        self.data[1]
+    }
+    pub fn h(&self) -> Float {
+        self.data[2]
+    }
+    pub fn n(&self) -> Float {
+        self.data[3]
+    }
+
+    pub fn cond_na(&self) -> Float {
+        consts::G_NA_MAX * self.m().powi(3) * self.h()
+    }
+
+    pub fn cond_k(&self) -> Float {
+        consts::G_K_MAX * self.n().powi(4)
+    }
+
+    pub fn i_na(&self) -> Float {
+        self.cond_na() * (self.v() - consts::E_NA)
+    }
+
+    pub fn i_k(&self) -> Float {
+        self.cond_k() * (self.v() - consts::E_K)
+    }
 }
 
 #[derive(Default)]

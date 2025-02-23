@@ -195,7 +195,7 @@ fn main() {
                     ui.label("Initial voltage");
                     ui.add(
                         DragValue::new(&mut state.hh.setup.v0)
-                            .range(-25.0..=100.0)
+                            .range(hh::consts::E_K..=hh::consts::E_NA)
                             .speed(0.5),
                     );
                     ui.label("Simulation end");
@@ -294,7 +294,7 @@ fn main() {
                             (
                                 t * state.hh.setup.dt,
                                 if t < state.hh.points_avail as f64 {
-                                    state.hh.history[t as usize].data[0]
+                                    state.hh.history[t as usize].v()
                                 } else {
                                     0.0
                                 },
@@ -331,7 +331,7 @@ fn main() {
                                     (
                                         t * state.hh.setup.dt,
                                         if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].data[0]
+                                            state.hh.history[t as usize].i_na()
                                         } else {
                                             0.0
                                         },
@@ -341,6 +341,23 @@ fn main() {
                                 state.hh.setup.total_steps(),
                             ))
                             .name("I_Na"),
+                        );
+                        plot_ui.line(
+                            Line::new(PlotPoints::from_parametric_callback(
+                                |t| {
+                                    (
+                                        t * state.hh.setup.dt,
+                                        if t < state.hh.points_avail as f64 {
+                                            state.hh.history[t as usize].i_k()
+                                        } else {
+                                            0.0
+                                        },
+                                    )
+                                },
+                                0.0..state.hh.setup.total_steps() as f64,
+                                state.hh.setup.total_steps(),
+                            ))
+                            .name("I_K"),
                         );
                     });
                 }
@@ -352,7 +369,7 @@ fn main() {
                                     (
                                         t * state.hh.setup.dt,
                                         if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].data[1]
+                                            state.hh.history[t as usize].m()
                                         } else {
                                             0.0
                                         },
@@ -369,7 +386,7 @@ fn main() {
                                     (
                                         t * state.hh.setup.dt,
                                         if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].data[2]
+                                            state.hh.history[t as usize].h()
                                         } else {
                                             0.0
                                         },
@@ -378,7 +395,7 @@ fn main() {
                                 0.0..state.hh.setup.total_steps() as f64,
                                 state.hh.setup.total_steps(),
                             ))
-                            .name("k"),
+                            .name("h"),
                         );
                         plot_ui.line(
                             Line::new(PlotPoints::from_parametric_callback(
@@ -386,7 +403,7 @@ fn main() {
                                     (
                                         t * state.hh.setup.dt,
                                         if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].data[3]
+                                            state.hh.history[t as usize].n()
                                         } else {
                                             0.0
                                         },
