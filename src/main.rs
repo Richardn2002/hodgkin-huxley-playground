@@ -4,19 +4,17 @@ mod rk4;
 
 mod ui;
 
-use egui::{FontId, Grid, RichText, Window, widgets};
+use egui::{DragValue, FontId, Grid, RichText, Window, widgets};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
+
+use std::{cell::RefCell, rc::Rc};
 
 type Float = f64;
 
 fn main() {
-    let conf = miniquad::conf::Conf {
-        high_dpi: true,
-        fullscreen: true,
-        ..Default::default()
-    };
+    let sim_state = Rc::<RefCell<hh::State>>::new(RefCell::new(hh::State::default()));
 
-    let app = |_mq_ctx: &mut dyn miniquad::RenderingBackend, egui_ctx: &egui::Context| {
+    let app = move |_mq_ctx: &mut dyn miniquad::RenderingBackend, egui_ctx: &egui::Context| {
         Window::new("Console").title_bar(true).show(egui_ctx, |ui| {
             Grid::new("console grid")
                 .num_columns(2)
@@ -161,7 +159,92 @@ fn main() {
                 );
             });
         });
+
+        Window::new("Full Simulation").show(egui_ctx, |ui| {
+            let mut state = sim_state.borrow_mut();
+
+            Grid::new("settings grid")
+                .num_columns(8)
+                .spacing([20.0, 4.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    ui.label("Initial voltage");
+                    ui.add(
+                        DragValue::new(&mut state.setup.v0)
+                            .range(-25.0..=100.0)
+                            .speed(0.5),
+                    );
+                    ui.label("Simulation end");
+                    ui.add(
+                        DragValue::new(&mut state.setup.end)
+                            .range(0.0..=50.0)
+                            .speed(0.5),
+                    );
+                    ui.label("Step");
+                    ui.add(
+                        DragValue::new(&mut state.setup.dt)
+                            .range(0.0..=1.0)
+                            .speed(0.001),
+                    );
+                    ui.label("Steps per frame");
+                    ui.add(
+                        DragValue::new(&mut state.setup.steps_per_frame)
+                            .range(1..=10000)
+                            .speed(100),
+                    );
+                    ui.end_row();
+
+                    ui.label("Pulse settings");
+                    ui.label("");
+                    ui.label("Start");
+                    let limit = state.setup.pulse.end;
+                    ui.add(
+                        DragValue::new(&mut state.setup.pulse.start)
+                            .range(0.0..=limit)
+                            .speed(0.1),
+                    );
+                    ui.label("End");
+                    let (start_limit, end_limit) = (state.setup.pulse.start, state.setup.end);
+                    ui.add(
+                        DragValue::new(&mut state.setup.pulse.end)
+                            .range(start_limit..=end_limit)
+                            .speed(0.1),
+                    );
+                    ui.label("Magnitude");
+                    ui.add(
+                        DragValue::new(&mut state.setup.pulse.magnitude)
+                            .range(-20.0..=20.0)
+                            .speed(1.0),
+                    );
+                    ui.end_row();
+                });
+            ui.separator();
+
+            let plot = Plot::new("pulse plot");
+            plot.show(ui, |plot_ui| {
+                plot_ui.line(Line::new(PlotPoints::from_parametric_callback(
+                    |t| match t {
+                        0.0 => (0.0, 0.0),
+                        1.0 => (state.setup.pulse.start, 0.0),
+                        2.0 => (state.setup.pulse.start, state.setup.pulse.magnitude),
+                        3.0 => (state.setup.pulse.end, state.setup.pulse.magnitude),
+                        4.0 => (state.setup.pulse.end, 0.0),
+                        5.0 => (state.setup.end, 0.0),
+                        _ => panic!("Impossible t value."),
+                    },
+                    0.0..=5.0,
+                    6,
+                )));
+            });
+        });
     };
 
-    miniquad::start(conf, move || Box::new(ui::Backend::new(app)));
+    miniquad::start(
+        miniquad::conf::Conf {
+            high_dpi: true,
+            fullscreen: true,
+            ..Default::default()
+        },
+        move || Box::new(ui::Backend::new(app)),
+    );
 }

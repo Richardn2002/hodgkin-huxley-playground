@@ -23,3 +23,37 @@ pub fn tau_n(v: Float) -> Float {
 pub fn n_inf(v: Float) -> Float {
     rate::alpha_n(v) / (rate::alpha_n(v) + rate::beta_n(v))
 }
+
+pub struct Pulse {
+    pub start: Float,
+    pub end: Float,
+    pub magnitude: Float,
+}
+pub struct Setup {
+    pub v0: Float,
+    pub end: Float,
+    pub dt: Float,
+    pub steps_per_frame: usize,
+    pub pulse: Pulse,
+}
+
+impl Default for Setup {
+    fn default() -> Self {
+        Self {
+            v0: 0.0,
+            end: 10.0,
+            dt: 0.01,
+            steps_per_frame: 1000,
+            pulse: Pulse {
+                start: 0.0,
+                end: 1.0,
+                magnitude: 10.0,
+            },
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct State {
+    pub setup: Setup,
+}
