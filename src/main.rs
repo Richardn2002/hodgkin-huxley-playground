@@ -1,9 +1,10 @@
+mod hh;
 mod rate;
 mod rk4;
 
 mod ui;
 
-use egui::{Grid, Window, widgets};
+use egui::{FontId, Grid, RichText, Window, widgets};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 type Float = f64;
@@ -95,6 +96,68 @@ fn main() {
                         200,
                     ))
                     .name("β_n"),
+                );
+            });
+        });
+
+        Window::new("First-order Kinetics").show(egui_ctx, |ui| {
+            ui.label("For a large collection of identical gates, define");
+            ui.label(RichText::new("τ_x = 1/(α_x + β_x)").font(FontId::proportional(20.0)));
+            ui.label(RichText::new("x_∞ = α_x/(α_x + β_x)").font(FontId::proportional(20.0)));
+            ui.label("Then gate dynamics follow,");
+            ui.label(RichText::new("τ_x dx/dt = -x + x_∞").font(FontId::proportional(20.0)));
+
+            let plot = Plot::new("rate function plot")
+                .height(ui.available_height())
+                .legend(Legend::default());
+            plot.show(ui, |plot_ui| {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::tau_m,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("τ_m"),
+                );
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::m_inf,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("m_∞"),
+                );
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::tau_h,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("τ_h"),
+                );
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::h_inf,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("h_∞"),
+                );
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::tau_n,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("τ_n"),
+                );
+                plot_ui.line(
+                    Line::new(PlotPoints::from_explicit_callback(
+                        hh::n_inf,
+                        -150.0..100.0,
+                        250,
+                    ))
+                    .name("n_∞"),
                 );
             });
         });
