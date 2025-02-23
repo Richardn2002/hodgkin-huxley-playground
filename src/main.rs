@@ -11,6 +11,8 @@ use std::{cell::RefCell, rc::Rc};
 
 type Float = f64;
 
+const PLOT_POINTS: usize = 200;
+
 #[derive(Default, PartialEq)]
 enum ExtraPlot {
     #[default]
@@ -282,29 +284,46 @@ fn main() {
                 );
             });
 
+            /// helper function to extract subsampled data to plot from potentially incomplete and too many simulated data points
+            fn line_from_sim(
+                sim: &hh::State,
+                extract: impl Fn(hh::Axon) -> Float,
+                points: usize,
+            ) -> Line {
+                Line::new(PlotPoints::from_parametric_callback(
+                    |t| {
+                        let percentage = t / points as f64;
+                        let perfect_idx = percentage * sim.setup.total_steps() as f64;
+                        let left_idx = perfect_idx.floor() as usize;
+                        let right_idx = left_idx + 1;
+
+                        let left = if left_idx < sim.points_avail {
+                            extract(sim.history[left_idx])
+                        } else {
+                            0.0
+                        };
+                        let right = if right_idx < sim.points_avail {
+                            extract(sim.history[right_idx])
+                        } else {
+                            0.0
+                        };
+                        let interp = left * (right_idx as f64 - perfect_idx)
+                            + right * (perfect_idx - left_idx as f64);
+
+                        (percentage * sim.setup.end, interp)
+                    },
+                    0.0..points as f64,
+                    points,
+                ))
+            }
+
             let plot = Plot::new("simulated voltage plot")
                 .link_axis(ui.id(), true, false)
                 .link_cursor(ui.id(), true, false)
                 .height(height_for_plots * 0.45)
                 .legend(Legend::default());
             plot.show(ui, |plot_ui| {
-                plot_ui.line(
-                    Line::new(PlotPoints::from_parametric_callback(
-                        |t| {
-                            (
-                                t * state.hh.setup.dt,
-                                if t < state.hh.points_avail as f64 {
-                                    state.hh.history[t as usize].v()
-                                } else {
-                                    0.0
-                                },
-                            )
-                        },
-                        0.0..state.hh.setup.total_steps() as f64,
-                        state.hh.setup.total_steps(),
-                    ))
-                    .name("voltage"),
-                );
+                plot_ui.line(line_from_sim(&state.hh, |a| a.v(), PLOT_POINTS).name("voltage"));
             });
 
             ui.horizontal(|ui| {
@@ -325,98 +344,29 @@ fn main() {
             match state.ui.extra_plot {
                 ExtraPlot::Current => {
                     extra_plot.show(ui, |plot_ui| {
-                        plot_ui.line(
-                            Line::new(PlotPoints::from_parametric_callback(
-                                |t| {
-                                    (
-                                        t * state.hh.setup.dt,
-                                        if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].i_na()
-                                        } else {
-                                            0.0
-                                        },
-                                    )
-                                },
-                                0.0..state.hh.setup.total_steps() as f64,
-                                state.hh.setup.total_steps(),
-                            ))
-                            .name("I_Na"),
-                        );
-                        plot_ui.line(
-                            Line::new(PlotPoints::from_parametric_callback(
-                                |t| {
-                                    (
-                                        t * state.hh.setup.dt,
-                                        if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].i_k()
-                                        } else {
-                                            0.0
-                                        },
-                                    )
-                                },
-                                0.0..state.hh.setup.total_steps() as f64,
-                                state.hh.setup.total_steps(),
-                            ))
-                            .name("I_K"),
-                        );
+                        plot_ui
+                            .line(line_from_sim(&state.hh, |a| a.i_na(), PLOT_POINTS).name("I_Na"));
+                        plot_ui
+                            .line(line_from_sim(&state.hh, |a| a.i_k(), PLOT_POINTS).name("I_K"));
                     });
                 }
                 ExtraPlot::Gate => {
                     extra_plot.show(ui, |plot_ui| {
+                        plot_ui.line(line_from_sim(&state.hh, |a| a.m(), PLOT_POINTS).name("m"));
+                        plot_ui.line(line_from_sim(&state.hh, |a| a.h(), PLOT_POINTS).name("h"));
+                        plot_ui.line(line_from_sim(&state.hh, |a| a.n(), PLOT_POINTS).name("n"));
+                    });
+                }
+                ExtraPlot::Conductance => {
+                    extra_plot.show(ui, |plot_ui| {
                         plot_ui.line(
-                            Line::new(PlotPoints::from_parametric_callback(
-                                |t| {
-                                    (
-                                        t * state.hh.setup.dt,
-                                        if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].m()
-                                        } else {
-                                            0.0
-                                        },
-                                    )
-                                },
-                                0.0..state.hh.setup.total_steps() as f64,
-                                state.hh.setup.total_steps(),
-                            ))
-                            .name("m"),
+                            line_from_sim(&state.hh, |a| a.cond_na(), PLOT_POINTS).name("g_Na"),
                         );
                         plot_ui.line(
-                            Line::new(PlotPoints::from_parametric_callback(
-                                |t| {
-                                    (
-                                        t * state.hh.setup.dt,
-                                        if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].h()
-                                        } else {
-                                            0.0
-                                        },
-                                    )
-                                },
-                                0.0..state.hh.setup.total_steps() as f64,
-                                state.hh.setup.total_steps(),
-                            ))
-                            .name("h"),
-                        );
-                        plot_ui.line(
-                            Line::new(PlotPoints::from_parametric_callback(
-                                |t| {
-                                    (
-                                        t * state.hh.setup.dt,
-                                        if t < state.hh.points_avail as f64 {
-                                            state.hh.history[t as usize].n()
-                                        } else {
-                                            0.0
-                                        },
-                                    )
-                                },
-                                0.0..state.hh.setup.total_steps() as f64,
-                                state.hh.setup.total_steps(),
-                            ))
-                            .name("n"),
+                            line_from_sim(&state.hh, |a| a.cond_k(), PLOT_POINTS).name("g_K"),
                         );
                     });
                 }
-                ExtraPlot::Conductance => todo!(),
             }
         });
     };
