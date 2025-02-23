@@ -106,6 +106,18 @@ impl Axon {
     pub fn i_k(&self) -> Float {
         self.cond_k() * (self.v() - consts::E_K)
     }
+
+    pub fn m_inf(&self) -> Float {
+        m_inf(self.v())
+    }
+
+    pub fn h_inf(&self) -> Float {
+        h_inf(self.v())
+    }
+
+    pub fn n_inf(&self) -> Float {
+        n_inf(self.v())
+    }
 }
 
 #[derive(Default)]

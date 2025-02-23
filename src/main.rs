@@ -355,6 +355,15 @@ fn main() {
                         plot_ui.line(line_from_sim(&state.hh, |a| a.m(), PLOT_POINTS).name("m"));
                         plot_ui.line(line_from_sim(&state.hh, |a| a.h(), PLOT_POINTS).name("h"));
                         plot_ui.line(line_from_sim(&state.hh, |a| a.n(), PLOT_POINTS).name("n"));
+                        plot_ui.line(
+                            line_from_sim(&state.hh, |a| a.m_inf(), PLOT_POINTS).name("m_inf"),
+                        );
+                        plot_ui.line(
+                            line_from_sim(&state.hh, |a| a.h_inf(), PLOT_POINTS).name("h_inf"),
+                        );
+                        plot_ui.line(
+                            line_from_sim(&state.hh, |a| a.n_inf(), PLOT_POINTS).name("n_inf"),
+                        );
                     });
                 }
                 ExtraPlot::Conductance => {
