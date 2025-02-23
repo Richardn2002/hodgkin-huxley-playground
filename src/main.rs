@@ -190,7 +190,7 @@ fn main() {
                 .spacing([20.0, 4.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    if state.hh.simulating {
+                    if state.hh.simulating() {
                         ui.disable();
                     }
 
@@ -247,7 +247,9 @@ fn main() {
             ui.separator();
 
             ui.horizontal(|ui| {
-                ui.toggle_value(&mut state.hh.simulating, "Simulate");
+                if ui.button("Simulate").clicked() {
+                    state.hh.init();
+                }
 
                 let progress_bar = ProgressBar::new(
                     state.hh.points_avail as f32 / state.hh.setup.total_steps() as f32,
@@ -257,6 +259,10 @@ fn main() {
                 state.ui.sim_prog_bar_animate = ui.add(progress_bar).hovered();
             });
             ui.separator();
+
+            if state.hh.simulating() {
+                state.hh.step();
+            }
 
             let height_for_plots = ui.available_height();
 

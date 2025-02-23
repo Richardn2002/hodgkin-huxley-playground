@@ -1,4 +1,4 @@
-use crate::{Float, rate};
+use crate::{Float, rate, rk4};
 
 pub mod consts {
     use super::Float;
@@ -10,6 +10,8 @@ pub mod consts {
     pub const G_NA_MAX: Float = 120.0;
     pub const G_K_MAX: Float = 36.0;
     pub const G_L_MAX: Float = 0.3;
+
+    pub const C_M: Float = 1.0;
 }
 
 pub fn tau_m(v: Float) -> Float {
@@ -123,7 +125,73 @@ impl Axon {
 #[derive(Default)]
 pub struct State {
     pub setup: Setup,
-    pub simulating: bool,
+    simulating: bool,
     pub points_avail: usize,
     pub history: Vec<Axon>,
+}
+
+impl State {
+    pub fn simulating(&self) -> bool {
+        self.simulating
+    }
+
+    pub fn init(&mut self) {
+        if self.setup.total_steps() == 0 {
+            return;
+        }
+
+        self.history
+            .resize(self.setup.total_steps(), Axon::default());
+        self.history[0] = Axon {
+            data: [
+                self.setup.v0,
+                m_inf(self.setup.v0),
+                h_inf(self.setup.v0),
+                n_inf(self.setup.v0),
+            ],
+        };
+        self.points_avail = 1;
+        self.simulating = true;
+    }
+
+    /// do nothing if not already simulating
+    ///
+    /// continue simulating for `steps`. if upper limit met, break early and end the simulation
+    pub fn step(&mut self) {
+        if !self.simulating {
+            return;
+        }
+
+        for _ in 0..self.setup.steps_per_frame {
+            if self.points_avail == self.setup.total_steps() {
+                self.simulating = false;
+                return;
+            }
+
+            let system = |state: &[Float; 4], t: Float, d_state: &mut [Float; 4]| {
+                let i = if t >= self.setup.pulse.start && t < self.setup.pulse.end {
+                    self.setup.pulse.magnitude
+                } else {
+                    0.0
+                };
+
+                let axon = Axon { data: *state };
+                d_state[0] =
+                    (-axon.i_na() - axon.i_k() + consts::G_L_MAX * (consts::E_L - axon.v()) + i)
+                        / consts::C_M;
+                d_state[1] = (-axon.m() + axon.m_inf()) / tau_m(axon.v());
+                d_state[2] = (-axon.h() + axon.h_inf()) / tau_h(axon.v());
+                d_state[3] = (-axon.n() + axon.n_inf()) / tau_n(axon.v());
+            };
+
+            let new_state = rk4::step(
+                system,
+                self.history[self.points_avail - 1].data,
+                self.setup.dt * self.points_avail as Float,
+                self.setup.dt,
+            );
+            self.history[self.points_avail] = Axon { data: new_state };
+            self.points_avail += 1;
+        }
+    }
 }
