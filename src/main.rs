@@ -4,15 +4,35 @@ mod rk4;
 
 mod ui;
 
-use egui::{DragValue, FontId, Grid, RichText, Window, widgets};
+use egui::{DragValue, FontId, Grid, ProgressBar, RichText, Window, widgets};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 use std::{cell::RefCell, rc::Rc};
 
 type Float = f64;
 
+#[derive(Default, PartialEq)]
+enum ExtraPlot {
+    #[default]
+    Current,
+    Gate,
+    Conductance,
+}
+
+#[derive(Default)]
+struct UiState {
+    sim_prog_bar_animate: bool,
+    extra_plot: ExtraPlot,
+}
+
+#[derive(Default)]
+struct State {
+    ui: UiState,
+    hh: hh::State,
+}
+
 fn main() {
-    let sim_state = Rc::<RefCell<hh::State>>::new(RefCell::new(hh::State::default()));
+    let state = Rc::<RefCell<State>>::new(RefCell::new(State::default()));
 
     let app = move |_mq_ctx: &mut dyn miniquad::RenderingBackend, egui_ctx: &egui::Context| {
         Window::new("Console").title_bar(true).show(egui_ctx, |ui| {
@@ -161,34 +181,38 @@ fn main() {
         });
 
         Window::new("Full Simulation").show(egui_ctx, |ui| {
-            let mut state = sim_state.borrow_mut();
+            let mut state = state.borrow_mut();
 
             Grid::new("settings grid")
                 .num_columns(8)
                 .spacing([20.0, 4.0])
                 .striped(true)
                 .show(ui, |ui| {
+                    if state.hh.simulating {
+                        ui.disable();
+                    }
+
                     ui.label("Initial voltage");
                     ui.add(
-                        DragValue::new(&mut state.setup.v0)
+                        DragValue::new(&mut state.hh.setup.v0)
                             .range(-25.0..=100.0)
                             .speed(0.5),
                     );
                     ui.label("Simulation end");
                     ui.add(
-                        DragValue::new(&mut state.setup.end)
-                            .range(0.0..=50.0)
+                        DragValue::new(&mut state.hh.setup.end)
+                            .range(0.0..=200.0)
                             .speed(0.5),
                     );
                     ui.label("Step");
                     ui.add(
-                        DragValue::new(&mut state.setup.dt)
-                            .range(0.0..=1.0)
+                        DragValue::new(&mut state.hh.setup.dt)
+                            .range(0.001..=1.0)
                             .speed(0.001),
                     );
                     ui.label("Steps per frame");
                     ui.add(
-                        DragValue::new(&mut state.setup.steps_per_frame)
+                        DragValue::new(&mut state.hh.setup.steps_per_frame)
                             .range(1..=10000)
                             .speed(100),
                     );
@@ -197,22 +221,22 @@ fn main() {
                     ui.label("Pulse settings");
                     ui.label("");
                     ui.label("Start");
-                    let limit = state.setup.pulse.end;
+                    let limit = state.hh.setup.pulse.end;
                     ui.add(
-                        DragValue::new(&mut state.setup.pulse.start)
+                        DragValue::new(&mut state.hh.setup.pulse.start)
                             .range(0.0..=limit)
                             .speed(0.1),
                     );
                     ui.label("End");
-                    let (start_limit, end_limit) = (state.setup.pulse.start, state.setup.end);
+                    let (start_limit, end_limit) = (state.hh.setup.pulse.start, state.hh.setup.end);
                     ui.add(
-                        DragValue::new(&mut state.setup.pulse.end)
+                        DragValue::new(&mut state.hh.setup.pulse.end)
                             .range(start_limit..=end_limit)
                             .speed(0.1),
                     );
                     ui.label("Magnitude");
                     ui.add(
-                        DragValue::new(&mut state.setup.pulse.magnitude)
+                        DragValue::new(&mut state.hh.setup.pulse.magnitude)
                             .range(-20.0..=20.0)
                             .speed(1.0),
                     );
@@ -220,22 +244,163 @@ fn main() {
                 });
             ui.separator();
 
-            let plot = Plot::new("pulse plot");
-            plot.show(ui, |plot_ui| {
-                plot_ui.line(Line::new(PlotPoints::from_parametric_callback(
-                    |t| match t {
-                        0.0 => (0.0, 0.0),
-                        1.0 => (state.setup.pulse.start, 0.0),
-                        2.0 => (state.setup.pulse.start, state.setup.pulse.magnitude),
-                        3.0 => (state.setup.pulse.end, state.setup.pulse.magnitude),
-                        4.0 => (state.setup.pulse.end, 0.0),
-                        5.0 => (state.setup.end, 0.0),
-                        _ => panic!("Impossible t value."),
-                    },
-                    0.0..=5.0,
-                    6,
-                )));
+            ui.horizontal(|ui| {
+                ui.toggle_value(&mut state.hh.simulating, "Simulate");
+
+                let progress_bar = ProgressBar::new(
+                    state.hh.points_avail as f32 / state.hh.setup.total_steps() as f32,
+                )
+                .desired_width(ui.available_width())
+                .animate(state.ui.sim_prog_bar_animate);
+                state.ui.sim_prog_bar_animate = ui.add(progress_bar).hovered();
             });
+            ui.separator();
+
+            let height_for_plots = ui.available_height();
+
+            let plot = Plot::new("pulse plot")
+                .link_axis(ui.id(), true, false)
+                .link_cursor(ui.id(), true, false)
+                .height(height_for_plots * 0.15)
+                .legend(Legend::default());
+            plot.show(ui, |plot_ui| {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| match t {
+                            0.0 => (0.0, 0.0),
+                            1.0 => (state.hh.setup.pulse.start, 0.0),
+                            2.0 => (state.hh.setup.pulse.start, state.hh.setup.pulse.magnitude),
+                            3.0 => (state.hh.setup.pulse.end, state.hh.setup.pulse.magnitude),
+                            4.0 => (state.hh.setup.pulse.end, 0.0),
+                            5.0 => (state.hh.setup.end, 0.0),
+                            _ => panic!("Impossible t value."),
+                        },
+                        0.0..=5.0,
+                        6,
+                    ))
+                    .name("injected current"),
+                );
+            });
+
+            let plot = Plot::new("simulated voltage plot")
+                .link_axis(ui.id(), true, false)
+                .link_cursor(ui.id(), true, false)
+                .height(height_for_plots * 0.45)
+                .legend(Legend::default());
+            plot.show(ui, |plot_ui| {
+                plot_ui.line(
+                    Line::new(PlotPoints::from_parametric_callback(
+                        |t| {
+                            (
+                                t * state.hh.setup.dt,
+                                if t < state.hh.points_avail as f64 {
+                                    state.hh.history[t as usize].data[0]
+                                } else {
+                                    0.0
+                                },
+                            )
+                        },
+                        0.0..state.hh.setup.total_steps() as f64,
+                        state.hh.setup.total_steps(),
+                    ))
+                    .name("voltage"),
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut state.ui.extra_plot, ExtraPlot::Current, "Current");
+                ui.selectable_value(&mut state.ui.extra_plot, ExtraPlot::Gate, "Gate Variables");
+                ui.selectable_value(
+                    &mut state.ui.extra_plot,
+                    ExtraPlot::Conductance,
+                    "Conductances",
+                );
+            });
+
+            let extra_plot = Plot::new("simulated extra plot")
+                .link_axis(ui.id(), true, false)
+                .link_cursor(ui.id(), true, false)
+                .height(ui.available_height())
+                .legend(Legend::default());
+            match state.ui.extra_plot {
+                ExtraPlot::Current => {
+                    extra_plot.show(ui, |plot_ui| {
+                        plot_ui.line(
+                            Line::new(PlotPoints::from_parametric_callback(
+                                |t| {
+                                    (
+                                        t * state.hh.setup.dt,
+                                        if t < state.hh.points_avail as f64 {
+                                            state.hh.history[t as usize].data[0]
+                                        } else {
+                                            0.0
+                                        },
+                                    )
+                                },
+                                0.0..state.hh.setup.total_steps() as f64,
+                                state.hh.setup.total_steps(),
+                            ))
+                            .name("I_Na"),
+                        );
+                    });
+                }
+                ExtraPlot::Gate => {
+                    extra_plot.show(ui, |plot_ui| {
+                        plot_ui.line(
+                            Line::new(PlotPoints::from_parametric_callback(
+                                |t| {
+                                    (
+                                        t * state.hh.setup.dt,
+                                        if t < state.hh.points_avail as f64 {
+                                            state.hh.history[t as usize].data[1]
+                                        } else {
+                                            0.0
+                                        },
+                                    )
+                                },
+                                0.0..state.hh.setup.total_steps() as f64,
+                                state.hh.setup.total_steps(),
+                            ))
+                            .name("m"),
+                        );
+                        plot_ui.line(
+                            Line::new(PlotPoints::from_parametric_callback(
+                                |t| {
+                                    (
+                                        t * state.hh.setup.dt,
+                                        if t < state.hh.points_avail as f64 {
+                                            state.hh.history[t as usize].data[2]
+                                        } else {
+                                            0.0
+                                        },
+                                    )
+                                },
+                                0.0..state.hh.setup.total_steps() as f64,
+                                state.hh.setup.total_steps(),
+                            ))
+                            .name("k"),
+                        );
+                        plot_ui.line(
+                            Line::new(PlotPoints::from_parametric_callback(
+                                |t| {
+                                    (
+                                        t * state.hh.setup.dt,
+                                        if t < state.hh.points_avail as f64 {
+                                            state.hh.history[t as usize].data[3]
+                                        } else {
+                                            0.0
+                                        },
+                                    )
+                                },
+                                0.0..state.hh.setup.total_steps() as f64,
+                                state.hh.setup.total_steps(),
+                            ))
+                            .name("n"),
+                        );
+                    });
+                }
+                ExtraPlot::Conductance => todo!(),
+            }
         });
     };
 

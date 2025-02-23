@@ -37,6 +37,12 @@ pub struct Setup {
     pub pulse: Pulse,
 }
 
+impl Setup {
+    pub fn total_steps(&self) -> usize {
+        (self.end / self.dt).floor() as usize
+    }
+}
+
 impl Default for Setup {
     fn default() -> Self {
         Self {
@@ -53,7 +59,16 @@ impl Default for Setup {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+pub struct Axon {
+    /// V, m, h, n
+    pub data: [Float; 4],
+}
+
 #[derive(Default)]
 pub struct State {
     pub setup: Setup,
+    pub simulating: bool,
+    pub points_avail: usize,
+    pub history: Vec<Axon>,
 }
