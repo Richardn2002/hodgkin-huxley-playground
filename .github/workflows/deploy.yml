@@ -15,6 +15,11 @@ jobs:
       steps:
          - name: Checkout
            uses: actions/checkout@v4
+         - name: Setup Rust (default version is outdated)
+           uses: actions-rust-lang/setup-rust-toolchain@v1
+           with:
+              toolchain: stable
+              target: wasm32-unknown-unknown
          - name: Build WASM
            run: cargo build --release --target wasm32-unknown-unknown
          - name: Move WASM to pages folder
