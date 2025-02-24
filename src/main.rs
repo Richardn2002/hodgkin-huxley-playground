@@ -54,6 +54,10 @@ fn main() {
                     );
                     ui.end_row();
 
+                    ui.label("Hint");
+                    ui.label("Double click on plot to reset axes.");
+                    ui.end_row();
+
                     ui.label("Powered by");
                     ui.hyperlink_to("Rust", "https://www.rust-lang.org/");
                     ui.end_row();
@@ -254,6 +258,7 @@ fn main() {
                 let progress_bar = ProgressBar::new(
                     state.hh.points_avail as f32 / state.hh.setup.total_steps() as f32,
                 )
+                .show_percentage()
                 .desired_width(ui.available_width())
                 .animate(state.ui.sim_prog_bar_animate);
                 state.ui.sim_prog_bar_animate = ui.add(progress_bar).hovered();
