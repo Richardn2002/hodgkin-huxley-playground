@@ -1,0 +1,30 @@
+name: Deploy
+
+permissions:
+   contents: read
+   pages: write
+   id-token: write
+
+on:
+   workflow_dispatch:
+   push:
+
+jobs:
+   deploy:
+      runs-on: ubuntu-latest
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+         - name: Build WASM
+           run: cargo build --release --target wasm32-unknown-unknown
+         - name: Move WASM to pages folder
+           run: mv target/wasm32-unknown-unknown/release/hodgkin-huxley-playground.wasm pages/hodgkin-huxley-playground.wasm
+         - name: Setup Pages
+           uses: actions/configure-pages@v4
+         - name: Upload artifacts
+           uses: actions/upload-pages-artifact@v3
+           with:
+              path: "pages"
+         - name: Deploy to GitHub Pages
+           id: deployment
+           uses: actions/deploy-pages@v4
