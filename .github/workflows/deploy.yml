@@ -22,14 +22,20 @@ jobs:
               target: wasm32-unknown-unknown
          - name: Build WASM
            run: cargo build --release --target wasm32-unknown-unknown
+         - name: Make pages folder
+           run: mkdir target/pages
          - name: Move WASM to pages folder
-           run: mv target/wasm32-unknown-unknown/release/hodgkin-huxley-playground.wasm pages/hodgkin-huxley-playground.wasm
+           run: mv target/wasm32-unknown-unknown/release/hodgkin-huxley-playground.wasm target/pages/hodgkin-huxley-playground.wasm
+         - name: Move to pages folder
+           run: cd target/pages
+         - name: Clone HTML/JS boilerplate
+           run: for file in index.html quad-url.js sapp_jsutils.js gl.js; do; wget https://github.com/not-fl3/egui-miniquad/raw/refs/heads/master/docs/$file; done
          - name: Setup Pages
            uses: actions/configure-pages@v4
          - name: Upload artifacts
            uses: actions/upload-pages-artifact@v3
            with:
-              path: "pages"
+              path: "."
          - name: Deploy to GitHub Pages
            id: deployment
            uses: actions/deploy-pages@v4
