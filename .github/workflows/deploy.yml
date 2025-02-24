@@ -29,7 +29,7 @@ jobs:
          - name: Move to pages folder
            run: cd target/pages
          - name: Clone HTML/JS boilerplate
-           run: for file in index.html quad-url.js sapp_jsutils.js gl.js; do; wget https://github.com/not-fl3/egui-miniquad/raw/refs/heads/master/docs/$file; done
+           run: for file in index.html quad-url.js sapp_jsutils.js gl.js; do wget https://github.com/not-fl3/egui-miniquad/raw/refs/heads/master/docs/$file; done
          - name: Setup Pages
            uses: actions/configure-pages@v4
          - name: Upload artifacts
