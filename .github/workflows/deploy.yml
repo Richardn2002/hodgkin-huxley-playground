@@ -26,16 +26,15 @@ jobs:
            run: mkdir target/pages
          - name: Move WASM to pages folder
            run: mv target/wasm32-unknown-unknown/release/hodgkin-huxley-playground.wasm target/pages/demo.wasm
-         - name: Move to pages folder
-           run: cd target/pages
          - name: Clone HTML/JS boilerplate
            run: for file in index.html quad-url.js sapp_jsutils.js gl.js; do wget https://github.com/not-fl3/egui-miniquad/raw/refs/heads/master/docs/$file; done
+           working-directory: target/pages
          - name: Setup Pages
            uses: actions/configure-pages@v4
          - name: Upload artifacts
            uses: actions/upload-pages-artifact@v3
            with:
-              path: "."
+              path: "target/pages"
          - name: Deploy to GitHub Pages
            id: deployment
            uses: actions/deploy-pages@v4
